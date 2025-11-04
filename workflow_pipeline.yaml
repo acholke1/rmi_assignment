@@ -1,0 +1,35 @@
+# GCP Workflows definition that runs a BigQuery query (simplified)
+# Replace `your-gcp-project-id` and set the `query` parameter accordingly
+
+main:
+  params: [projectId, query]
+  steps:
+    - init:
+        assign:
+          - projectId: ${projectId}
+          - query: ${query}
+    - run_query:
+        call: googleapis.bigquery.v2.jobs.insert
+        args:
+          projectId: ${projectId}
+          body:
+            configuration:
+              query:
+                query: ${query}
+                useLegacySql: false
+        result: bq_job
+    - get_job_status:
+        call: googleapis.bigquery.v2.jobs.get
+        args:
+          projectId: ${projectId}
+          jobId: ${bq_job.jobReference.jobId}
+        result: job_status
+    - check_status:
+        call: sys.wait
+        args:
+          seconds: 5
+    - return_result:
+        return: ${job_status}
+
+# CRON for Cloud Scheduler to run at 10AM every Monday (UTC or adjust timezone):
+# 0 10 * * 1
